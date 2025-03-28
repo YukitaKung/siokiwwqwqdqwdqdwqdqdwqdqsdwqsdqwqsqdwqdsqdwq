@@ -1,0 +1,217 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+from colorama import init, Fore, Style
+
+# Initialize colorama for colored output
+init()
+
+def print_banner():
+    banner = f"""
+{Fore.CYAN + Style.BRIGHT}    ==================================================
+    ||  ███████╗███████╗    ████████╗ ██████╗  ██████╗ ||
+    ||  ██╔════╝╚══███╔╝    ╚══██╔══╝██╔═══██╗██╔═══██╗||
+    ||  █████╗    ███╔╝█████╗ ██║   ██║   ██║██║   ██║||
+    ||  ██╔══╝   ███╔╝ ╚════╝ ██║   ██║   ██║██║   ██║||
+    ||  ███████╗███████╗       ██║   ╚██████╔╝╚██████╔╝||
+    ||  ╚══════╝╚══════╝       ╚═╝    ╚═════╝  ╚═════╝ ||
+    =================================================={Style.RESET_ALL}
+    {Fore.MAGENTA + Style.BRIGHT}       * Ez Tool - Powered By Yukita *{Style.RESET_ALL}
+    {Fore.YELLOW}    - Multi-Group & Multi-Game File Edition -{Style.RESET_ALL}
+    """
+    print(banner)
+
+def setup_driver():
+    options = Options()
+    options.add_argument("--disable-gpu")
+    options.add_argument("--log-level=3")
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    try:
+        driver = webdriver.Chrome(options=options)
+        print(f"{Fore.MAGENTA + Style.BRIGHT}* ChromeDriver Initialized Successfully{Style.RESET_ALL}")
+        return driver
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[!] Failed to Initialize ChromeDriver: {str(e)}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}>> Please ensure ChromeDriver matches Chrome version (e.g., 134.0.6998.178). Download from: https://chromedriver.chromium.org/downloads{Style.RESET_ALL}")
+        return None
+
+def login(driver, cookie):
+    try:
+        driver.get("https://www.roblox.com")
+        driver.delete_all_cookies()
+        cleaned_cookie = cookie.strip()
+        driver.add_cookie({"name": ".ROBLOSECURITY", "value": cleaned_cookie, "domain": ".roblox.com"})
+        driver.refresh()
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "nav-robux")))
+        print(f"{Fore.GREEN + Style.BRIGHT}[OK] Login Successful{Style.RESET_ALL}")
+        return True
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Login Failed: {str(e)}{Style.RESET_ALL}")
+        return False
+
+def fix_url(url, type="group"):
+    base = "https://www.roblox.com/groups/" if type == "group" else "https://www.roblox.com/games/"
+    if url.startswith("https://"):
+        return url
+    elif url.startswith("www."):
+        fixed_url = f"https://{url}"
+        print(f"{Fore.YELLOW}>> Fixed {type} URL: {url} -> {fixed_url}{Style.RESET_ALL}")
+        return fixed_url
+    elif url.isdigit():  # Handle just ID case
+        fixed_url = f"{base}{url}"
+        print(f"{Fore.YELLOW}>> Fixed {type} URL: {url} -> {fixed_url}{Style.RESET_ALL}")
+        return fixed_url
+    else:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Invalid {type} URL: {url}{Style.RESET_ALL}")
+        return url
+
+def join_group(driver, group_url):
+    group_name = "Unknown Group"
+    try:
+        fixed_url = fix_url(group_url, "group")
+        if not fixed_url.startswith("https://www.roblox.com/groups/"):
+            raise ValueError(f"Invalid group URL after fix: {fixed_url}")
+        
+        driver.get(fixed_url)
+        group_name = driver.title.split(" - ")[0]
+        join_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Join Community')]")))
+        join_button.click()
+        time.sleep(1)
+        WebDriverWait(driver, 5).until_not(EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Join Community')]")))
+        print(f"{Fore.GREEN + Style.BRIGHT}[OK] Joined Group: {group_name}{Style.RESET_ALL}")
+        return f"{Fore.GREEN}{group_name} (Success){Style.RESET_ALL}"
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Failed to Join Group: {group_name} - {str(e)}{Style.RESET_ALL}")
+        return f"{Fore.RED}{group_name} (Failed){Style.RESET_ALL}"
+
+def process_game(driver, game_url):
+    game_name = "Unknown Game"
+    favorite_status = f"{Fore.YELLOW}Favorite{Style.RESET_ALL} {Fore.RED}Failed{Style.RESET_ALL}"
+    notify_status = f"{Fore.YELLOW}Notify{Style.RESET_ALL} {Fore.RED}Failed{Style.RESET_ALL}"
+
+    try:
+        fixed_url = fix_url(game_url, "game")
+        if not fixed_url.startswith("https://www.roblox.com/games/"):
+            raise ValueError(f"Invalid game URL after fix: {fixed_url}")
+        
+        driver.get(fixed_url)
+        game_name = driver.title.split(" - ")[0]
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Failed to Load Game: {game_name} - {str(e)}{Style.RESET_ALL}")
+        return favorite_status, notify_status
+
+    # Favorite game
+    try:
+        favorite_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "toggle-game-favorite")))
+        favorite_button.click()
+        time.sleep(1)
+        WebDriverWait(driver, 5).until(lambda d: "active" in favorite_button.get_attribute("class") or "favorited" in d.page_source.lower())
+        favorite_status = f"{Fore.YELLOW}Favorite{Style.RESET_ALL} {Fore.GREEN}Success{Style.RESET_ALL}"
+        print(f"{Fore.GREEN + Style.BRIGHT}[OK] Favorited Game: {game_name}{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Failed to Favorite Game: {game_name} - {str(e)}{Style.RESET_ALL}")
+
+    # Notify game
+    try:
+        notify_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "toggle-game-follow")))
+        notify_button.click()
+        time.sleep(1)
+        WebDriverWait(driver, 5).until(lambda d: "active" in notify_button.get_attribute("class") or "following" in d.page_source.lower())
+        notify_status = f"{Fore.YELLOW}Notify{Style.RESET_ALL} {Fore.GREEN}Success{Style.RESET_ALL}"
+        print(f"{Fore.GREEN + Style.BRIGHT}[OK] Notification Enabled for Game: {game_name}{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Failed to Enable Notification for Game: {game_name} - {str(e)}{Style.RESET_ALL}")
+
+    return favorite_status, notify_status
+
+def process_actions(driver, username, group_urls, game_urls):
+    results = {"groups": [], "games": []}
+
+    # Process all groups first
+    print(f"\n{Fore.YELLOW + Style.BRIGHT}>> Starting Group Actions...{Style.RESET_ALL}")
+    for group_url in group_urls:
+        group_result = join_group(driver, group_url)
+        results["groups"].append(f"{Fore.YELLOW}Join Group{Style.RESET_ALL} > {group_result}")
+
+    # Process all games after groups
+    print(f"\n{Fore.YELLOW + Style.BRIGHT}>> Starting Game Actions...{Style.RESET_ALL}")
+    for game_url in game_urls:
+        favorite_status, notify_status = process_game(driver, game_url)
+        results["games"].append(f"{favorite_status} | {notify_status}")
+
+    # Display Results with Super Cool Styling
+    print(f"""
+{Fore.CYAN + Style.BRIGHT}    +===========================================+
+    | * ID: {username} *                        |
+    | ----------------------------------------- |
+    | {Fore.MAGENTA}Group Results:{Style.RESET_ALL}              |
+    | ----------------------------------------- |{Style.RESET_ALL}
+    """)
+    for group_result in results["groups"]:
+        print(f"{Fore.CYAN + Style.BRIGHT}    | > {group_result}{Style.RESET_ALL}")
+    print(f"""
+{Fore.CYAN + Style.BRIGHT}    | ----------------------------------------- |
+    | {Fore.MAGENTA}Game Results:{Style.RESET_ALL}               |
+    | ----------------------------------------- |{Style.RESET_ALL}
+    """)
+    for game_result in results["games"]:
+        print(f"{Fore.CYAN + Style.BRIGHT}    | > {game_result}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN + Style.BRIGHT}    +===========================================+{Style.RESET_ALL}")
+
+def main():
+    print_banner()
+    cookie_file = input(f"{Fore.BLUE + Style.BRIGHT}[?] Enter Cookie File Path (e.g., C:/cookies.txt): {Style.RESET_ALL}").strip('"')
+    group_file = input(f"{Fore.BLUE + Style.BRIGHT}[?] Enter Group URLs File Path (e.g., C:/groups.txt): {Style.RESET_ALL}").strip('"')
+    game_file = input(f"{Fore.BLUE + Style.BRIGHT}[?] Enter Game URLs File Path (e.g., C:/games.txt): {Style.RESET_ALL}").strip('"')
+
+    # Load group URLs from file
+    try:
+        with open(group_file, 'r', encoding='utf-8') as f:
+            group_urls = [line.strip() for line in f if line.strip()]
+        print(f"{Fore.MAGENTA + Style.BRIGHT}* Loaded {len(group_urls)} Group URLs{Style.RESET_ALL}")
+    except FileNotFoundError:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Group File Not Found: {group_file}{Style.RESET_ALL}")
+        return
+
+    # Load game URLs from file
+    try:
+        with open(game_file, 'r', encoding='utf-8') as f:
+            game_urls = [line.strip() for line in f if line.strip()]
+        print(f"{Fore.MAGENTA + Style.BRIGHT}* Loaded {len(game_urls)} Game URLs{Style.RESET_ALL}")
+    except FileNotFoundError:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Game File Not Found: {game_file}{Style.RESET_ALL}")
+        return
+
+    # Load cookies from file
+    try:
+        with open(cookie_file, 'r', encoding='utf-8') as f:
+            cookies = [line.strip() for line in f if line.strip()]
+        print(f"{Fore.MAGENTA + Style.BRIGHT}* Found {len(cookies)} Cookies in File{Style.RESET_ALL}")
+    except FileNotFoundError:
+        print(f"{Fore.RED + Style.BRIGHT}[X] Cookie File Not Found: {cookie_file}{Style.RESET_ALL}")
+        return
+
+    for idx, cookie in enumerate(cookies, 1):
+        print(f"\n{Fore.YELLOW + Style.BRIGHT}>> Processing Account {idx}/{len(cookies)}{Style.RESET_ALL}")
+        driver = setup_driver()
+        if driver is None:
+            continue
+        try:
+            if login(driver, cookie):
+                username = f"{idx}"
+                process_actions(driver, username, group_urls, game_urls)
+            else:
+                print(f"{Fore.RED + Style.BRIGHT}[X] Account {idx} Login Failed{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED + Style.BRIGHT}[!] Error with Account {idx}: {str(e)}{Style.RESET_ALL}")
+        finally:
+            driver.quit()
+            time.sleep(2)
+    
+    print(f"\n{Fore.GREEN + Style.BRIGHT}>>> All Tasks Completed Successfully!{Style.RESET_ALL}")
+
+if __name__ == "__main__":
+    main()
