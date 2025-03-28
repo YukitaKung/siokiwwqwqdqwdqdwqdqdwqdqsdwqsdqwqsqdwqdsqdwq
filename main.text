@@ -19,7 +19,7 @@ def print_banner():
     ||  ███████╗███████╗       ██║   ╚██████╔╝╚██████╔╝||
     ||  ╚══════╝╚══════╝       ╚═╝    ╚═════╝  ╚═════╝ ||
     =================================================={Style.RESET_ALL}
-    {Fore.MAGENTA + Style.BRIGHT}       * Ez Tool - Powered By Yukita *{Style.RESET_ALL}
+    {Fore.MAGENTA + Style.BRIGHT}       * Xxx Tool - Powered By Yukita *{Style.RESET_ALL}
     {Fore.YELLOW}    - Multi-Group & Multi-Game File Edition -{Style.RESET_ALL}
     """
     print(banner)
